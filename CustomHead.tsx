@@ -3,6 +3,65 @@ import { FullSlug, joinSegments, pathToRoot } from "../quartz/util/path"
 import { JSResourceToScriptElement } from "../quartz/util/resources"
 import { googleFontHref } from "../quartz/util/theme"
 import { QuartzComponent, QuartzComponentConstructor, QuartzComponentProps } from "../quartz/components/types"
+import { visit } from 'unist-util-visit'
+import { Element } from 'hast'
+
+interface QA {
+  question: string
+  answer: string
+}
+
+const extractFAQs = (htmlAst: any, text: string): QA[] => {
+  const faqs: QA[] = []
+  let currentQuestion: string | null = null
+  let currentAnswer: string[] = []
+
+  visit(htmlAst, 'element', (node: Element) => {
+    if (/^h[1-6]$/.test(node.tagName)) {
+      const headingText = node.children
+        .filter((child: any) => child.type === 'text')
+        .map((child: any) => child.value)
+        .join('')
+
+      if (headingText.trim().endsWith('?')) {
+        // If there's a previous Q&A, push it to faqs
+        if (currentQuestion && currentAnswer.length > 0) {
+          faqs.push({
+            question: currentQuestion,
+            answer: currentAnswer.join(' ').trim(),
+          })
+          currentAnswer = []
+        }
+        currentQuestion = headingText.trim()
+      } else {
+        currentQuestion = null
+      }
+    } else if (currentQuestion) {
+      // Collect answer paragraphs or other relevant nodes
+      if (node.tagName === 'p' || node.tagName.startsWith('h')) {
+        const paragraphText = node.children
+          .filter((child: any) => child.type === 'text' || child.type === 'element')
+          .map((child: any) => {
+            if (child.type === 'text') return child.value
+            if (child.type === 'element') return child.children.map((c: any) => c.value).join('')
+            return ''
+          })
+          .join(' ')
+        currentAnswer.push(paragraphText)
+      }
+    }
+  })
+
+  // Push the last Q&A if exists
+  if (currentQuestion && currentAnswer.length > 0) {
+    faqs.push({
+      question: currentQuestion,
+      answer: currentAnswer.join(' ').trim(),
+    })
+  }
+
+  return faqs
+}
 
 export default (() => {
   const createBreadcrumbs = (url: URL) => {
@@ -75,8 +134,27 @@ export default (() => {
       structuredData.articleSection = fileData.frontmatter.articleSection
     }
 
+    // Extract FAQs
+    const faqs = fileData.htmlAst ? extractFAQs(fileData.htmlAst, fileData.text) : []
+    let faqStructuredData = null
+
+    if (faqs.length > 0) {
+      faqStructuredData = {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": faqs.map((qa) => ({
+          "@type": "Question",
+          "name": qa.question,
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": qa.answer,
+          },
+        })),
+      }
+    }
+
     const breadcrumbs = createBreadcrumbs(url)
-    return { structuredData, breadcrumbs }
+    return { structuredData, breadcrumbs, faqStructuredData }
   }
 
   const Head: QuartzComponent = ({ cfg, fileData, externalResources }: QuartzComponentProps) => {
@@ -94,7 +172,7 @@ export default (() => {
       ? `https://${cfg.baseUrl}/${fileData.frontmatter.ogImage}`
       : `https://${cfg.baseUrl}/static/og-image.png`
 
-    const { structuredData, breadcrumbs } = createStructuredData(cfg, fileData, url, ogImagePath)
+    const { structuredData, breadcrumbs, faqStructuredData } = createStructuredData(cfg, fileData, url, ogImagePath)
 
     return (
       <head>
@@ -132,6 +210,12 @@ export default (() => {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
         />
+        {faqStructuredData && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(faqStructuredData) }}
+          />
+        )}
       </head>
     )
   }

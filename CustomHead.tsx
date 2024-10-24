@@ -5,6 +5,22 @@ import { googleFontHref } from "../quartz/util/theme"
 import { QuartzComponent, QuartzComponentConstructor, QuartzComponentProps } from "../quartz/components/types"
 
 export default (() => {
+  const createBreadcrumbs = (url: URL) => {
+    console.log("url", url)
+    const segments = url.pathname.split("/").filter(Boolean)
+    const breadcrumbs = segments.map((segment, index) => ({
+      "@type": "ListItem",
+      "position": index + 1,
+      "name": segment.replace(/-/g, " "), // Convert slug-like text to readable text
+      "item": `${url.origin}/${segments.slice(0, index + 1).join("/")}`
+    }))
+    return {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": breadcrumbs
+    }
+  }
+
   const createStructuredData = (cfg: any, fileData: any, url: any, ogImagePath: any) => {
     const title = fileData.frontmatter?.title ?? i18n(cfg.locale).propertyDefaults.title
     const description = fileData.description?.trim() ?? i18n(cfg.locale).propertyDefaults.description
@@ -13,7 +29,6 @@ export default (() => {
     const schemaType = fileData.frontmatter?.type ?? "WebPage" // Default to WebPage
     const language = cfg.locale ?? "en"
 
-    
     const structuredData = {
       "@context": "https://schema.org",
       "@type": schemaType,
@@ -60,7 +75,8 @@ export default (() => {
       structuredData.articleSection = fileData.frontmatter.articleSection
     }
 
-    return structuredData
+    const breadcrumbs = createBreadcrumbs(url)
+    return { structuredData, breadcrumbs }
   }
 
   const Head: QuartzComponent = ({ cfg, fileData, externalResources }: QuartzComponentProps) => {
@@ -69,7 +85,7 @@ export default (() => {
       fileData.description?.trim() ?? i18n(cfg.locale).propertyDefaults.description
     const { css, js } = externalResources
 
-    const url = new URL(`https://${cfg.baseUrl ?? "example.com"}`)
+    const url = new URL(`https://${cfg.baseUrl ?? "example.com"}/${fileData.slug ?? ""}`)
     const path = url.pathname as FullSlug
     const baseDir = fileData.slug === "404" ? path : pathToRoot(fileData.slug!)
 
@@ -78,7 +94,7 @@ export default (() => {
       ? `https://${cfg.baseUrl}/${fileData.frontmatter.ogImage}`
       : `https://${cfg.baseUrl}/static/og-image.png`
 
-    const structuredData = createStructuredData(cfg, fileData, url, ogImagePath)
+    const { structuredData, breadcrumbs } = createStructuredData(cfg, fileData, url, ogImagePath)
 
     return (
       <head>
@@ -107,10 +123,14 @@ export default (() => {
           .filter((resource) => resource.loadTime === "beforeDOMReady")
           .map((res) => JSResourceToScriptElement(res, true))}
 
-        {/* Structured Data - Unescaped */}
+        {/* Structured Data */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs) }}
         />
       </head>
     )
@@ -118,4 +138,3 @@ export default (() => {
 
   return Head
 }) satisfies QuartzComponentConstructor
-

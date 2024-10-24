@@ -32,11 +32,9 @@ export async function handleBuild(argv) {
 +   preserveSymlinks: true,
 ```
 
-
-
 # CustomHead.tsx - Added Structured Data Support in Quartz
 
-This component automatically adds structured data (`JSON-LD`) to the page's `<head>` tag. It uses the page's frontmatter and other fallback data to populate key SEO-related fields. This document outlines the frontmatter options that the component reads to create structured data.
+This component automatically adds structured data (`JSON-LD`) to the page's `<head>` tag. It uses the page's frontmatter and content to populate key SEO-related fields, including support for FAQ structured data. This document outlines the frontmatter options and content parsing that the component uses to create structured data.
 
 ## Frontmatter Options
 
@@ -88,15 +86,75 @@ The following frontmatter properties influence the structured data output:
 - **Description**: Path to the Open Graph image for the page.
 - **Fallback**: Uses `/static/og-image.png`
 
+## FAQ Structured Data
+
+### Automatic Extraction of Q&A Pairs
+
+The `CustomHead.tsx` component can automatically extract question and answer pairs from your content to generate FAQ structured data. It does this by parsing the content for headings that end with a question mark (`?`) and considers the subsequent content as the answer.
+
+#### How It Works
+
+- **Question Identification**: Any heading (`h1` to `h6`) that ends with a question mark is identified as a question.
+- **Answer Content**: The content following the question heading, up until the next question heading or end of the document, is considered the answer.
+- **FAQ Schema Generation**: The extracted Q&A pairs are formatted according to the [FAQPage schema](https://schema.org/FAQPage) and included in the page's structured data.
+
+#### Example Content
+
+```markdown
+# How do I install the Smart Connections plugin?
+
+To install the Smart Connections plugin, navigate to the plugin marketplace and search for "Smart Connections." Click "Install" and then "Enable."
+
+# What features does the Smart Connections plugin offer?
+
+The plugin offers features such as automatic linking, backlink management, and enhanced search capabilities to improve your productivity.
+```
+
+#### Generated FAQ Structured Data Example
+
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How do I install the Smart Connections plugin?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "To install the Smart Connections plugin, navigate to the plugin marketplace and search for \"Smart Connections.\" Click \"Install\" and then \"Enable.\""
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What features does the Smart Connections plugin offer?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The plugin offers features such as automatic linking, backlink management, and enhanced search capabilities to improve your productivity."
+      }
+    }
+  ]
+}
+```
+
+### Important Notes
+
+- **Content Structure**: For the automatic FAQ extraction to work correctly, ensure your content follows the structure of questions as headings and answers as the content following them.
+- **Limitations**: Only headings that end with a question mark are considered. Other content will not be included in the FAQ structured data.
+- **Nested Questions**: Currently, nested questions or multiple levels of headings are not differentiated; all headings ending with a question mark are treated equally.
+
 ## Additional Features
 
 ### Publisher Information
+
 The structured data automatically includes publisher information:
+
 - **Organization Name**: Uses `cfg.organization.name` or defaults to "Smart Connections"
 - **Logo**: Uses `/static/logo.png` from your base URL
 - **Logo Dimensions**: Fixed at 512x512 pixels
 
 ### Language Support
+
 - Automatically includes the page's language using the `cfg.locale` setting (defaults to "en")
 
 ## Example Frontmatter

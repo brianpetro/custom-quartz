@@ -215,7 +215,7 @@ export function ExplorerNode({ node, opts, fullPath, fileData }: ExplorerNodePro
             </div>
           )}
           {/* Recursively render children of folder */}
-          <div class={`folder-outer ${node.depth === 0 || isDefaultOpen || fileData.filePath?.includes(node.name) ? "open" : ""}`}>
+          <div class={`folder-outer ${(node.depth === 0) || isDefaultOpen || fileData.filePath?.includes(node.displayName) ? "open" : ""}`}>
             <ul
               // Inline style for left folder paddings
               style={{

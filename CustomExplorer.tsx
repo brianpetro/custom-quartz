@@ -2,7 +2,7 @@ import { QuartzComponent, QuartzComponentConstructor, QuartzComponentProps } fro
 import explorerStyle from "../quartz/components/styles/explorer.scss"
 
 // @ts-ignore
-import script from "../quartz/components/scripts/explorer.inline"
+import script from "./custom_explorer.inline"
 import { ExplorerNode, FileNode, Options } from "./CustomExplorerNode"
 import { QuartzPluginData } from "../quartz/plugins/vfile"
 import { classNames } from "../quartz/util/lang"
@@ -91,7 +91,7 @@ export default ((userOpts?: Partial<Options>) => {
           id="explorer"
           data-behavior={opts.folderClickBehavior}
           data-collapsed={opts.folderDefaultState}
-          data-savestate={opts.useSavedState}
+          data-savestate="false"
           data-tree={jsonTree}
           aria-controls="explorer-content"
           aria-expanded={opts.folderDefaultState === "open"}
